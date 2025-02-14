@@ -44,7 +44,7 @@
 
     - name: Create deploy key
       community.general.github_deploy_key:
-        owner: "neamanahmed"
+        owner: "<repo_owner>"
         repo: "{{ gh_repo }}"
         name: "{{ ansible_facts['hostname'] }}"
         key: "{{ deploye_user.ssh_public_key }}"
@@ -62,7 +62,7 @@
 
     - name: Git checkout
       ansible.builtin.git:
-        repo: git@github.com:neamanahmed/{{ gh_repo }}.git
+        repo: git@github.com:<repo_owner>/{{ gh_repo }}.git
         accept_hostkey: true
         dest: "/home/{{ user_name }}/{{ gh_repo }}"
         single_branch: true
@@ -74,7 +74,7 @@
 
     - name: Delete deploy key
       community.general.github_deploy_key:
-        owner: 'neamanahmed'
+        owner: '<repo_owner>'
         repo: "{{ gh_repo }}"
         name: "{{ ansible_facts['hostname'] }}"
         key: "{{ deploye_user.ssh_public_key }}"
