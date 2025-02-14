@@ -1,0 +1,85 @@
+- name: Create Temporary Deployment user on remote host
+  hosts: "{{ HostName  | default([]) }}"
+  become: true
+  vars_files:
+    - secu.yml
+  vars:
+    user_group: "{{ Group | default('wheel') }}"
+    user_name: "{{ User | default('devops') }}"
+    gh_repo: <repository_name>
+
+  tasks:
+    - name: Check  exist "{{ user_name }}"
+      ansible.builtin.user:
+        name: "{{ user_name }}"
+        group: "{{ user_group }}"
+        shell: /usr/bin/bash
+        generate_ssh_key: true
+        ssh_key_bits: 2048
+        ssh_key_file: .ssh/id_rsa
+        state: present
+      register: deploye_user
+      tags:
+        - devop_user
+
+
+    - name: Create sudo conf for  user '{{ user_name }}'
+      ansible.builtin.copy:
+        content: '{{ user_name }}  ALL=(ALL)NOPASSWD:ALL '
+        dest: /etc/sudoers.d/{{ user_name }}
+        mode: '0644'
+      tags:
+        - prvilege
+
+
+    - name: Ensure key is in  ~/.ssh/authorized_key of "{{ user_name }}"
+      ansible.posix.authorized_key:
+        user: "{{ user_name }}"
+        state: present
+        key: '{{ item }}'
+      with_file:
+        - /home/ansible/.ssh/id_rsa.pub
+      tags:
+        - copy_pb_key
+
+    - name: Create deploy key
+      community.general.github_deploy_key:
+        owner: "neamanahmed"
+        repo: "{{ gh_repo }}"
+        name: "{{ ansible_facts['hostname'] }}"
+        key: "{{ deploye_user.ssh_public_key }}"
+        read_only: true
+        token: "{{ ght }}"
+      tags:
+        - create_deploy_key
+
+    - name: Recursively remove old  directory named {{ gh_repo }}
+      ansible.builtin.file:
+        path: /home/{{ user_name }}/{{ gh_repo }}
+        state: absent
+      tags:
+        - delete_rep_dir
+
+    - name: Git checkout
+      ansible.builtin.git:
+        repo: git@github.com:neamanahmed/{{ gh_repo }}.git
+        accept_hostkey: true
+        dest: "/home/{{ user_name }}/{{ gh_repo }}"
+        single_branch: true
+        version: main
+      become: true
+      become_user: "{{ user_name }}"
+      tags:
+        - repo_clone
+
+    - name: Delete deploy key
+      community.general.github_deploy_key:
+        owner: 'neamanahmed'
+        repo: "{{ gh_repo }}"
+        name: "{{ ansible_facts['hostname'] }}"
+        key: "{{ deploye_user.ssh_public_key }}"
+        read_only: true
+        token: "{{ ght }}"
+        state: absent
+      tags:
+        - delete_key

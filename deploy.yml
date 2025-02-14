@@ -1,0 +1,4 @@
+- name: Create Deployment user and deploy key
+  import_playbook: deployer.yml
+- name: Deploy App
+  import_playbook: compile_war.yml
